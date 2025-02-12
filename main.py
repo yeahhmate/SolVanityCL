@@ -1,4 +1,3 @@
-import json
 import logging
 import multiprocessing
 import os
@@ -10,6 +9,7 @@ from math import ceil
 from multiprocessing.pool import Pool
 from typing import List, Optional, Tuple
 
+from nacl.public import PrivateKey
 import pyopencl as cl
 
 os.environ["PYOPENCL_COMPILER_OUTPUT"] = "1"
@@ -20,6 +20,8 @@ import click
 import numpy as np
 from base58 import b58decode, b58encode
 from nacl.signing import SigningKey
+
+ROOT_DIR = os.path.dirname(__file__)
 
 logging.basicConfig(level="INFO", format="[%(levelname)s %(asctime)s] %(message)s")
 
@@ -72,7 +74,7 @@ def get_kernel_source(starts_with: str, ends_with: str, cl, is_case_sensitive: b
     PREFIX_BYTES = list(bytes(starts_with.encode()))
     SUFFIX_BYTES = list(bytes(ends_with.encode()))
 
-    with open(Path("opencl/kernel.cl"), "r") as f:
+    with open(os.path.join(ROOT_DIR, "opencl/kernel.cl"), "r") as f:
         source_lines = f.readlines()
 
     for i, s in enumerate(source_lines):
@@ -209,12 +211,9 @@ def save_result(outputs, output_dir):
         pv = SigningKey(pv_bytes)
         pb_bytes = bytes(pv.verify_key)
         pubkey = b58encode(pb_bytes).decode()
-
-        logging.info(f"Found: {pubkey}")
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-        Path(output_dir, f"{pubkey}.json").write_text(
-            json.dumps(list(pv_bytes + pb_bytes))
-        )
+        pvt_bytes = bytes(pv._signing_key)
+        print(f"Private key: " + "[" + ",".join(str(b) for b in pvt_bytes) +"]") # to get caught by bundler in stdout
+        logging.info(f"Public key: {pubkey}")
     return result_count
 
 
